@@ -159,15 +159,38 @@ body {
   color: #08130c;
 }
 
-.hint {
-  margin: 0 0 0 auto;
+.pace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
   color: var(--muted);
   font-size: 0.8rem;
-  text-align: right;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.pace select {
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 10px;
+  cursor: pointer;
+}
+
+.pace select:hover,
+.pace select:focus-visible {
+  border-color: var(--accent);
+  outline: none;
 }
 
 @media (max-width: 480px) {
-  .hint {
-    display: none;
+  .pace {
+    font-size: 0.72rem;
   }
 }

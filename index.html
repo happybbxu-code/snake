@@ -13,7 +13,7 @@
       <dl class="stats">
         <div><dt>Score</dt><dd id="score">0</dd></div>
         <div><dt>Best</dt><dd id="best">0</dd></div>
-        <div><dt>Speed</dt><dd id="speed">1</dd></div>
+        <div><dt>Level</dt><dd id="speed">1</dd></div>
       </dl>
     </header>
 
@@ -28,7 +28,14 @@
     <footer class="controls">
       <button type="button" id="startBtn" class="btn btn--primary">Start</button>
       <button type="button" id="pauseBtn" class="btn">Pause</button>
-      <p class="hint">Swipe on the board on touch devices.</p>
+      <label class="pace">
+        <span>Pace</span>
+        <select id="pace">
+          <option value="chill">Chill</option>
+          <option value="normal">Normal</option>
+          <option value="brisk">Brisk</option>
+        </select>
+      </label>
     </footer>
   </main>
 

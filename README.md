@@ -23,12 +23,25 @@ npm start          # python -m http.server 8000 → http://localhost:8000
 | `R` | Restart after game over |
 | Click the board | Start / pause / resume |
 | Swipe | Steer on touch devices |
+| Pace selector | Chill · Normal (default) · Brisk — remembered across reloads |
+
+## Pace
+
+| Preset | Start | Fastest | Ramp |
+| --- | --- | --- | --- |
+| Chill | 240 ms per move | 140 ms | −3 ms per food |
+| Normal | 190 ms per move | 100 ms | −3 ms per food |
+| Brisk | 130 ms per move | 65 ms | −4 ms per food |
+
+Normal is the default; the original 130/65 timing now lives in Brisk. The choice
+is stored in `localStorage` under `snake.pace` and can be changed mid-game.
 
 ## Rules
 
 - Walls are solid. Hitting one, or your own body, ends the run.
 - Food is worth 10 points and one segment of growth.
-- The tick speeds up 4 ms per food: 130 ms at the start, capped at 65 ms.
+- The pace ramps up as you eat: −3 ms per food on Chill and Normal, −4 ms on
+  Brisk, down to that preset's floor.
 - Best score persists in `localStorage` under `snake.best`.
 - Filling the entire 24×24 board wins the game.
 
@@ -55,10 +68,10 @@ next tick, and reversing into the neck is rejected rather than instant death.
 npm test           # node --test tests/core.test.cjs
 ```
 
-14 tests cover movement, turn buffering, growth, wall and self collisions,
-tail-following (not a collision), speed ramp, board-full win, reset, plus 100
-seeded random games asserting the body never self-intersects and food never
-spawns under the snake.
+14 tests plus 3 pace tests cover movement, turn buffering, growth, wall and self
+collisions, tail-following (not a collision), the speed ramp, preset ordering and
+runtime switching, board-full win, reset, plus 100 seeded random games asserting
+the body never self-intersects and food never spawns under the snake.
 
 ## Debugging
 

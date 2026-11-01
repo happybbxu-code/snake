@@ -18,6 +18,19 @@
 
   const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
 
+  /*
+   * Pace presets. `baseTickMs` is the delay between moves at the start,
+   * `minTickMs` the floor the ramp can reach, `accelMs` how much each food
+   * shaves off the delay.
+   */
+  const SPEEDS = {
+    chill: { label: 'Chill', baseTickMs: 240, minTickMs: 140, accelMs: 3 },
+    normal: { label: 'Normal', baseTickMs: 190, minTickMs: 100, accelMs: 3 },
+    brisk: { label: 'Brisk', baseTickMs: 130, minTickMs: 65, accelMs: 4 },
+  };
+
+  const DEFAULT_SPEED = 'normal';
+
   class SnakeGame {
     constructor(options = {}) {
       this.cols = options.cols ?? 24;
@@ -25,10 +38,25 @@
       this.rng = options.rng ?? Math.random;
       this.initialLength = Math.max(2, options.initialLength ?? 3);
       this.pointsPerFood = options.pointsPerFood ?? 10;
-      this.baseTickMs = options.baseTickMs ?? 130;
-      this.minTickMs = options.minTickMs ?? 65;
-      this.accelMs = options.accelMs ?? 4;
+
+      const requested = SPEEDS[options.speed] ? options.speed : DEFAULT_SPEED;
+      const preset = SPEEDS[requested];
+      this.speed = requested;
+      this.baseTickMs = options.baseTickMs ?? preset.baseTickMs;
+      this.minTickMs = options.minTickMs ?? preset.minTickMs;
+      this.accelMs = options.accelMs ?? preset.accelMs;
       this.reset();
+    }
+
+    /* Switch pace mid-game; the next tick uses the new delay. */
+    setSpeed(name) {
+      if (!SPEEDS[name]) return false;
+      const preset = SPEEDS[name];
+      this.speed = name;
+      this.baseTickMs = preset.baseTickMs;
+      this.minTickMs = preset.minTickMs;
+      this.accelMs = preset.accelMs;
+      return true;
     }
 
     reset() {
@@ -164,5 +192,5 @@
     }
   }
 
-  return { DIRECTIONS, OPPOSITE, SnakeGame };
+  return { DIRECTIONS, OPPOSITE, SPEEDS, DEFAULT_SPEED, SnakeGame };
 });

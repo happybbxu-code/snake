@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { SnakeGame } = require('../src/core.js');
+const { SnakeGame, SPEEDS } = require('../src/core.js');
 
 /** Build a game with a hand-placed snake so collision cases are explicit. */
 function withSnake(body, direction, overrides = {}) {
@@ -114,6 +114,34 @@ test('speed ramps up with food and clamps at the floor', () => {
   assert.ok(game.tickMs >= game.minTickMs);
   game.foodsEaten = 500;
   assert.equal(game.tickMs, game.minTickMs);
+});
+
+test('pace presets are ordered and slower than the old default', () => {
+  assert.ok(SPEEDS.chill.baseTickMs > SPEEDS.normal.baseTickMs);
+  assert.ok(SPEEDS.normal.baseTickMs > SPEEDS.brisk.baseTickMs);
+  assert.ok(SPEEDS.chill.minTickMs > SPEEDS.brisk.minTickMs);
+  // The original 130 ms start / 65 ms floor felt too fast; normal is calmer.
+  assert.ok(SPEEDS.normal.baseTickMs >= 180);
+  assert.ok(SPEEDS.normal.minTickMs >= 100);
+});
+
+test('speed can be switched at runtime, unknown names rejected', () => {
+  const game = new SnakeGame({ speed: 'brisk' });
+  assert.equal(game.speed, 'brisk');
+  assert.equal(game.tickMs, SPEEDS.brisk.baseTickMs);
+
+  assert.equal(game.setSpeed('chill'), true);
+  assert.equal(game.speed, 'chill');
+  assert.equal(game.tickMs, SPEEDS.chill.baseTickMs);
+  assert.equal(game.minTickMs, SPEEDS.chill.minTickMs);
+
+  assert.equal(game.setSpeed('ludicrous'), false);
+  assert.equal(game.speed, 'chill');
+});
+
+test('an unknown speed option falls back to the default', () => {
+  const game = new SnakeGame({ speed: 'nope' });
+  assert.equal(game.speed, 'normal');
 });
 
 test('a full board is reported as won, not over', () => {

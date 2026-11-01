@@ -4,11 +4,12 @@
 (function () {
   'use strict';
 
-  const { SnakeGame, DIRECTIONS } = window.SnakeCore;
+  const { SnakeGame, SPEEDS, DIRECTIONS } = window.SnakeCore;
 
   const COLS = 24;
   const ROWS = 24;
   const BEST_KEY = 'snake.best';
+  const PACE_KEY = 'snake.pace';
 
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
@@ -20,8 +21,9 @@
   const overlayText = document.getElementById('overlayText');
   const startBtn = document.getElementById('startBtn');
   const pauseBtn = document.getElementById('pauseBtn');
+  const paceSelect = document.getElementById('pace');
 
-  const game = new SnakeGame({ cols: COLS, rows: ROWS });
+  const game = new SnakeGame({ cols: COLS, rows: ROWS, speed: readPace() });
   const view = { size: 576 };
   let best = readBest();
   let eatFlash = 0;
@@ -32,6 +34,22 @@
       return Number(window.localStorage.getItem(BEST_KEY)) || 0;
     } catch (error) {
       return 0;
+    }
+  }
+
+  function readPace() {
+    try {
+      return window.localStorage.getItem(PACE_KEY) || 'normal';
+    } catch (error) {
+      return 'normal';
+    }
+  }
+
+  function savePace(name) {
+    try {
+      window.localStorage.setItem(PACE_KEY, name);
+    } catch (error) {
+      /* not fatal — the pace just resets on reload */
     }
   }
 
@@ -183,7 +201,10 @@
 
     if (game.state === 'ready') {
       overlayTitle.textContent = 'Ready?';
-      overlayText.textContent = 'Arrows / WASD to steer · Space to start';
+      overlayText.textContent =
+        'Arrows / WASD to steer · Space to start · ' +
+        (SPEEDS[game.speed] ? SPEEDS[game.speed].label : game.speed) +
+        ' pace';
     } else if (game.state === 'paused') {
       overlayTitle.textContent = 'Paused';
       overlayText.textContent = 'Space or P to resume';
@@ -322,6 +343,14 @@
     pauseBtn.blur();
   });
 
+  paceSelect.addEventListener('change', function () {
+    game.setSpeed(paceSelect.value);
+    savePace(paceSelect.value);
+    accumulator = 0;
+    syncOverlay();
+    paceSelect.blur();
+  });
+
   window.addEventListener('resize', resize);
 
   // ---- loop ----------------------------------------------------------------
@@ -361,6 +390,7 @@
   }
 
   resize();
+  paceSelect.value = game.speed;
   syncHud();
   syncOverlay();
   window.requestAnimationFrame(frame);
