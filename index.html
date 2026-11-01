@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Snake</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hud">
+      <h1>Snake</h1>
+      <dl class="stats">
+        <div><dt>Score</dt><dd id="score">0</dd></div>
+        <div><dt>Best</dt><dd id="best">0</dd></div>
+        <div><dt>Speed</dt><dd id="speed">1</dd></div>
+      </dl>
+    </header>
+
+    <div class="stage">
+      <canvas id="board" width="576" height="576" aria-label="Snake board"></canvas>
+      <div class="overlay" id="overlay" data-state="ready">
+        <p class="overlay__title" id="overlayTitle">Ready?</p>
+        <p class="overlay__text" id="overlayText">Arrows / WASD to steer &middot; Space to start</p>
+      </div>
+    </div>
+
+    <footer class="controls">
+      <button type="button" id="startBtn" class="btn btn--primary">Start</button>
+      <button type="button" id="pauseBtn" class="btn">Pause</button>
+      <p class="hint">Swipe on the board on touch devices.</p>
+    </footer>
+  </main>
+
+  <script src="src/core.js"></script>
+  <script src="src/game.js"></script>
+</body>
+</html>

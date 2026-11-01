@@ -1,0 +1,10 @@
+{
+  "name": "snake",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Classic snake game — canvas rendering, no build step, no dependencies.",
+  "scripts": {
+    "test": "node --test tests/core.test.cjs",
+    "start": "python -m http.server 8000"
+  }
+}
