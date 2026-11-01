@@ -45,7 +45,26 @@
       this.baseTickMs = options.baseTickMs ?? preset.baseTickMs;
       this.minTickMs = options.minTickMs ?? preset.minTickMs;
       this.accelMs = options.accelMs ?? preset.accelMs;
+
+      // Walls: solid by default, portals when wrap is on.
+      this.wrap = !!options.wrap;
+      // Obstacles: false | true (generate) | array of {x, y} (use as given).
+      this.density = options.density ?? 0.03;
+      this.fixedObstacles = Array.isArray(options.obstacles) ? options.obstacles : null;
+      this.obstaclesEnabled = this.fixedObstacles ? this.fixedObstacles.length > 0 : !!options.obstacles;
+
       this.reset();
+    }
+
+    setWrap(enabled) {
+      this.wrap = !!enabled;
+      return this.wrap;
+    }
+
+    /* Toggling obstacles needs a reset: the board shape changes. */
+    setObstacles(enabled) {
+      this.obstaclesEnabled = !!enabled;
+      return this.obstaclesEnabled;
     }
 
     /* Switch pace mid-game; the next tick uses the new delay. */
@@ -73,9 +92,48 @@
       this.score = 0;
       this.foodsEaten = 0;
       this.state = 'ready'; // ready | running | paused | over | won
+      this.obstacles = this.fixedObstacles
+        ? this.fixedObstacles.map((p) => ({ x: p.x, y: p.y }))
+        : this.obstaclesEnabled
+          ? this.generateObstacles()
+          : [];
+      this.obstacleKeys = new Set(this.obstacles.map((p) => p.x + ',' + p.y));
       this.food = null;
       this.placeFood();
       return this;
+    }
+
+    /*
+     * Scatter obstacles in mirrored pairs, keeping the spawn corridor clear and
+     * never landing on the snake. Low density (3% of the board) so the arena
+     * stays open — these are hazards to route around, not a maze.
+     */
+    generateObstacles() {
+      const target = Math.max(4, Math.round(this.cols * this.rows * this.density));
+      const taken = new Set(this.body.map((p) => p.x + ',' + p.y));
+      const corridor = Math.floor(this.rows / 2);
+      const cells = [];
+      const maxTries = target * 40;
+
+      for (let tries = 0; tries < maxTries && cells.length < target; tries++) {
+        const x = 1 + Math.floor(this.rng() * Math.max(1, this.cols - 2));
+        const y = 1 + Math.floor(this.rng() * Math.max(1, this.rows - 2));
+        const pair = [
+          { x, y },
+          { x: this.cols - 1 - x, y },
+        ];
+
+        for (const cell of pair) {
+          if (cells.length >= target) break;
+          if (Math.abs(cell.y - corridor) <= 1) continue;
+          const key = cell.x + ',' + cell.y;
+          if (taken.has(key)) continue;
+          taken.add(key);
+          cells.push(cell);
+        }
+      }
+
+      return cells;
     }
 
     get head() {
@@ -126,6 +184,7 @@
 
     freeCells() {
       const occupied = new Set(this.body.map((p) => p.x + ',' + p.y));
+      for (const key of this.obstacleKeys) occupied.add(key);
       const free = [];
       for (let y = 0; y < this.rows; y++) {
         for (let x = 0; x < this.cols; x++) {
@@ -159,11 +218,24 @@
       if (this.queue.length) this.direction = this.queue.shift();
 
       const delta = DIRECTIONS[this.direction];
-      const head = { x: this.head.x + delta.x, y: this.head.y + delta.y };
+      let head = { x: this.head.x + delta.x, y: this.head.y + delta.y };
 
       const outside =
         head.x < 0 || head.y < 0 || head.x >= this.cols || head.y >= this.rows;
+
       if (outside) {
+        if (!this.wrap) {
+          this.state = 'over';
+          return { moved: true, ate: false, dead: true, won: false };
+        }
+        // Portal: leave one edge, arrive at the opposite one.
+        head = {
+          x: (head.x + this.cols) % this.cols,
+          y: (head.y + this.rows) % this.rows,
+        };
+      }
+
+      if (this.obstacleKeys.has(head.x + ',' + head.y)) {
         this.state = 'over';
         return { moved: true, ate: false, dead: true, won: false };
       }

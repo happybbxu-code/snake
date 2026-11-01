@@ -37,9 +37,16 @@
         </select>
       </label>
     </footer>
+
+    <footer class="controls controls--toggles">
+      <label class="toggle"><input type="checkbox" id="wrapToggle" /> <span>Wrap walls</span></label>
+      <label class="toggle"><input type="checkbox" id="obstaclesToggle" /> <span>Obstacles</span></label>
+      <button type="button" id="muteBtn" class="btn btn--icon" aria-label="Mute sound" aria-pressed="false">Sound on</button>
+    </footer>
   </main>
 
   <script src="src/core.js"></script>
+  <script src="src/audio.js"></script>
   <script src="src/game.js"></script>
 </body>
 </html>

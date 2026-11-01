@@ -10,6 +10,9 @@
   const ROWS = 24;
   const BEST_KEY = 'snake.best';
   const PACE_KEY = 'snake.pace';
+  const WRAP_KEY = 'snake.wrap';
+  const OBSTACLES_KEY = 'snake.obstacles';
+  const MUTED_KEY = 'snake.muted';
 
   const canvas = document.getElementById('board');
   const ctx = canvas.getContext('2d');
@@ -22,8 +25,18 @@
   const startBtn = document.getElementById('startBtn');
   const pauseBtn = document.getElementById('pauseBtn');
   const paceSelect = document.getElementById('pace');
+  const wrapToggle = document.getElementById('wrapToggle');
+  const obstaclesToggle = document.getElementById('obstaclesToggle');
+  const muteBtn = document.getElementById('muteBtn');
+  const audio = window.SnakeAudio;
 
-  const game = new SnakeGame({ cols: COLS, rows: ROWS, speed: readPace() });
+  const game = new SnakeGame({
+    cols: COLS,
+    rows: ROWS,
+    speed: readPace(),
+    wrap: readFlag(WRAP_KEY),
+    obstacles: readFlag(OBSTACLES_KEY),
+  });
   const view = { size: 576 };
   let best = readBest();
   let eatFlash = 0;
@@ -51,6 +64,28 @@
     } catch (error) {
       /* not fatal — the pace just resets on reload */
     }
+  }
+
+  function readFlag(key) {
+    try {
+      return window.localStorage.getItem(key) === 'true';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function saveFlag(key, value) {
+    try {
+      window.localStorage.setItem(key, value ? 'true' : 'false');
+    } catch (error) {
+      /* settings won't persist */
+    }
+  }
+
+  function soundEffect(name) {
+    if (!audio) return;
+    audio.unlock();
+    if (typeof audio[name] === 'function') audio[name]();
   }
 
   function saveBest(value) {
@@ -167,6 +202,24 @@
     ctx.fill();
   }
 
+  function drawObstacles(cell) {
+    const pad = Math.max(1, cell * 0.06);
+    for (const block of game.obstacles) {
+      roundRect(
+        block.x * cell + pad,
+        block.y * cell + pad,
+        cell - pad * 2,
+        cell - pad * 2,
+        cell * 0.18
+      );
+      ctx.fillStyle = '#2f3b52';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(148, 178, 214, 0.28)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+  }
+
   function draw(now) {
     const size = view.size;
     const cell = size / COLS;
@@ -179,6 +232,7 @@
     }
 
     drawGrid(cell);
+    drawObstacles(cell);
     drawFood(cell, now);
     drawSnake(cell);
 
@@ -200,11 +254,15 @@
     overlay.dataset.state = game.state;
 
     if (game.state === 'ready') {
+      const modes = [];
+      if (game.wrap) modes.push('wrap');
+      if (game.obstacles.length) modes.push('obstacles');
       overlayTitle.textContent = 'Ready?';
       overlayText.textContent =
         'Arrows / WASD to steer · Space to start · ' +
         (SPEEDS[game.speed] ? SPEEDS[game.speed].label : game.speed) +
-        ' pace';
+        ' pace' +
+        (modes.length ? ' · ' + modes.join(' + ') : '');
     } else if (game.state === 'paused') {
       overlayTitle.textContent = 'Paused';
       overlayText.textContent = 'Space or P to resume';
@@ -250,12 +308,29 @@
       best = game.score;
       saveBest(best);
     }
+    soundEffect(event && event.won ? 'win' : 'death');
     syncHud();
     syncOverlay();
     if (event && event.won) {
       overlay.dataset.state = 'won';
       syncOverlay();
     }
+  }
+
+  function syncMute() {
+    const muted = audio ? audio.isMuted() : true;
+    muteBtn.textContent = muted ? 'Sound off' : 'Sound on';
+    muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+  }
+
+  /* Rebuild the board (obstacles changed) but stay on the start screen. */
+  function resetForNewBoard() {
+    game.reset();
+    eatFlash = 0;
+    shake = 0;
+    accumulator = 0;
+    syncHud();
+    syncOverlay();
   }
 
   // ---- input ---------------------------------------------------------------
@@ -276,6 +351,7 @@
   };
 
   window.addEventListener('keydown', function (event) {
+    if (audio) audio.unlock();
     const dir = KEY_DIRECTIONS[event.key];
 
     if (dir) {
@@ -308,6 +384,7 @@
   let pointerStart = null;
 
   canvas.addEventListener('pointerdown', function (event) {
+    if (audio) audio.unlock();
     pointerStart = { x: event.clientX, y: event.clientY };
     canvas.setPointerCapture(event.pointerId);
   });
@@ -351,6 +428,30 @@
     paceSelect.blur();
   });
 
+  wrapToggle.addEventListener('change', function () {
+    game.setWrap(wrapToggle.checked);
+    saveFlag(WRAP_KEY, wrapToggle.checked);
+    syncOverlay();
+    wrapToggle.blur();
+  });
+
+  obstaclesToggle.addEventListener('change', function () {
+    game.setObstacles(obstaclesToggle.checked);
+    saveFlag(OBSTACLES_KEY, obstaclesToggle.checked);
+    resetForNewBoard();
+    obstaclesToggle.blur();
+  });
+
+  muteBtn.addEventListener('click', function () {
+    if (!audio) return;
+    const muted = !audio.isMuted();
+    audio.setMuted(muted);
+    saveFlag(MUTED_KEY, muted);
+    if (!muted) audio.unlock();
+    syncMute();
+    muteBtn.blur();
+  });
+
   window.addEventListener('resize', resize);
 
   // ---- loop ----------------------------------------------------------------
@@ -371,6 +472,8 @@
         const result = game.step();
         if (result.ate) {
           eatFlash = 260;
+          soundEffect('eat');
+          if (game.foodsEaten % 5 === 0) soundEffect('levelUp');
           syncHud();
         }
         if (result.dead || result.won) {
@@ -391,6 +494,10 @@
 
   resize();
   paceSelect.value = game.speed;
+  wrapToggle.checked = game.wrap;
+  obstaclesToggle.checked = game.obstaclesEnabled;
+  if (audio && readFlag(MUTED_KEY)) audio.setMuted(true);
+  syncMute();
   syncHud();
   syncOverlay();
   window.requestAnimationFrame(frame);

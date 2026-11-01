@@ -1,7 +1,7 @@
 # Snake
 
 Classic snake, playable in the browser. No build step, no dependencies, no
-network calls — three source files and a stylesheet.
+network calls — four source files and a stylesheet.
 
 ## Play
 
@@ -24,6 +24,9 @@ npm start          # python -m http.server 8000 → http://localhost:8000
 | Click the board | Start / pause / resume |
 | Swipe | Steer on touch devices |
 | Pace selector | Chill · Normal (default) · Brisk — remembered across reloads |
+| Wrap walls | Edges become portals instead of killing you |
+| Obstacles | Scatter 3% of the board with solid blocks (restarts the board) |
+| Sound on/off | Mute toggle, also remembered |
 
 ## Pace
 
@@ -38,12 +41,16 @@ is stored in `localStorage` under `snake.pace` and can be changed mid-game.
 
 ## Rules
 
-- Walls are solid. Hitting one, or your own body, ends the run.
+- Walls are solid — unless **Wrap walls** is on, in which case leaving an edge
+  brings you out the opposite side.
+- **Obstacles** are solid blocks, generated in mirrored pairs at ~3% density,
+  never on the snake and never in the spawn corridor. Hitting one ends the run.
+  Toggling them rebuilds the board and returns to the start screen.
 - Food is worth 10 points and one segment of growth.
 - The pace ramps up as you eat: −3 ms per food on Chill and Normal, −4 ms on
   Brisk, down to that preset's floor.
 - Best score persists in `localStorage` under `snake.best`.
-- Filling the entire 24×24 board wins the game.
+- Filling the entire board (obstacles included) wins the game.
 
 ## Layout
 
@@ -51,6 +58,7 @@ is stored in `localStorage` under `snake.pace` and can be changed mid-game.
 index.html          markup + HUD + overlay
 styles.css          dark theme, responsive square board
 src/core.js         game rules only — no DOM (UMD: browser global or require)
+src/audio.js        WebAudio blips synthesized at runtime, no audio files
 src/game.js         canvas rendering, input handling, rAF loop
 tests/core.test.cjs node:test suite for the rules
 ```
@@ -62,16 +70,29 @@ The split matters: `core.js` is pure state and can be driven from Node, and
 Turns are buffered two deep, so a fast "up then right" both register before the
 next tick, and reversing into the neck is rejected rather than instant death.
 
+## Sound
+
+`src/audio.js` synthesizes everything with `OscillatorNode` + `GainNode` — no
+sound files, nothing to download, ~90 lines. Events: eat (rising triangle),
+level-up every 5 foods, death (falling saw), win (four-note arpeggio).
+
+The `AudioContext` is created lazily on the first real key/pointer event, because
+browsers block audio before a user gesture. Muting suspends nothing — it just
+skips creating the context, and the choice persists under `snake.muted`.
+
 ## Tests
 
 ```powershell
 npm test           # node --test tests/core.test.cjs
 ```
 
-14 tests plus 3 pace tests cover movement, turn buffering, growth, wall and self
-collisions, tail-following (not a collision), the speed ramp, preset ordering and
-runtime switching, board-full win, reset, plus 100 seeded random games asserting
-the body never self-intersects and food never spawns under the snake.
+27 tests: movement, turn buffering, growth, wall and self collisions,
+tail-following (not a collision), the speed ramp, preset ordering and runtime
+switching, wall wrap (both axes, toggling mid-run), obstacle collision,
+generated-obstacle placement (in bounds, off the snake, spawn corridor clear),
+obstacle/food exclusion, board-full win, reset, plus 100 seeded random games
+with solid walls and 200 more with wrap + obstacles enabled, asserting the body
+never self-intersects and food never spawns under the snake or in a block.
 
 ## Debugging
 
@@ -87,7 +108,7 @@ __snake.tick(4);   // eat it, grow, score
 
 ## Ideas
 
-- Wall-wrap mode and obstacles
-- Obstacles / levels
-- Sound on eat and death
+- Maze mode: generated corridors instead of scattered blocks
+- Levels that add obstacles as the score climbs
 - Run history and a score table in SQLite
+- Gamepad support
