@@ -250,21 +250,3 @@ body {
   outline-offset: 2px;
 }
 
-.btn--icon {
-  margin-left: auto;
-  padding: 7px 14px;
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: var(--muted);
-}
-
-.btn--icon[aria-pressed='true'] {
-  color: var(--muted);
-  border-style: dashed;
-}
-
-@media (max-width: 480px) {
-  .btn--icon {
-    margin-left: 0;
-  }
-}

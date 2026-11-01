@@ -27,7 +27,7 @@
   const paceSelect = document.getElementById('pace');
   const wrapToggle = document.getElementById('wrapToggle');
   const obstaclesToggle = document.getElementById('obstaclesToggle');
-  const muteBtn = document.getElementById('muteBtn');
+  const soundToggle = document.getElementById('soundToggle');
   const audio = window.SnakeAudio;
 
   const game = new SnakeGame({
@@ -66,6 +66,21 @@
     }
   }
 
+  /*
+   * One-time migration: the old UI had a "Sound on" *button* that muted on
+   * click, which is easy to hit by accident and then silently persists. Since
+   * the control is now a checkbox, start everyone unmuted once.
+   */
+  function migrateSoundSetting() {
+    try {
+      if (window.localStorage.getItem('snake.soundMigrated')) return;
+      window.localStorage.removeItem(MUTED_KEY);
+      window.localStorage.setItem('snake.soundMigrated', 'true');
+    } catch (error) {
+      /* storage unavailable; nothing to migrate */
+    }
+  }
+
   function readFlag(key) {
     try {
       return window.localStorage.getItem(key) === 'true';
@@ -86,6 +101,14 @@
     if (!audio) return;
     audio.unlock();
     if (typeof audio[name] === 'function') audio[name]();
+  }
+
+  /*
+   * Browsers only allow an AudioContext to start inside a real user gesture, so
+   * every click handler calls this before doing anything else.
+   */
+  function unlockAudio() {
+    if (audio) audio.unlock();
   }
 
   function saveBest(value) {
@@ -319,8 +342,8 @@
 
   function syncMute() {
     const muted = audio ? audio.isMuted() : true;
-    muteBtn.textContent = muted ? 'Sound off' : 'Sound on';
-    muteBtn.setAttribute('aria-pressed', muted ? 'true' : 'false');
+    soundToggle.checked = !muted;
+    soundToggle.parentNode.title = 'audio: ' + (audio ? audio.state() : 'unavailable');
   }
 
   /* Rebuild the board (obstacles changed) but stay on the start screen. */
@@ -409,18 +432,21 @@
   });
 
   startBtn.addEventListener('click', function () {
+    unlockAudio();
     if (game.isOver) restartGame();
     else primaryAction();
     startBtn.blur();
   });
 
   pauseBtn.addEventListener('click', function () {
+    unlockAudio();
     game.togglePause();
     syncOverlay();
     pauseBtn.blur();
   });
 
   paceSelect.addEventListener('change', function () {
+    unlockAudio();
     game.setSpeed(paceSelect.value);
     savePace(paceSelect.value);
     accumulator = 0;
@@ -429,6 +455,7 @@
   });
 
   wrapToggle.addEventListener('change', function () {
+    unlockAudio();
     game.setWrap(wrapToggle.checked);
     saveFlag(WRAP_KEY, wrapToggle.checked);
     syncOverlay();
@@ -436,20 +463,24 @@
   });
 
   obstaclesToggle.addEventListener('change', function () {
+    unlockAudio();
     game.setObstacles(obstaclesToggle.checked);
     saveFlag(OBSTACLES_KEY, obstaclesToggle.checked);
     resetForNewBoard();
     obstaclesToggle.blur();
   });
 
-  muteBtn.addEventListener('click', function () {
+  soundToggle.addEventListener('change', function () {
     if (!audio) return;
-    const muted = !audio.isMuted();
-    audio.setMuted(muted);
-    saveFlag(MUTED_KEY, muted);
-    if (!muted) audio.unlock();
+    const on = soundToggle.checked;
+    audio.setMuted(!on);
+    saveFlag(MUTED_KEY, !on);
+    // Confirm immediately that sound works when enabling it.
+    if (on) {
+      audio.unlock();
+      audio.test();
+    }
     syncMute();
-    muteBtn.blur();
   });
 
   window.addEventListener('resize', resize);
@@ -496,6 +527,7 @@
   paceSelect.value = game.speed;
   wrapToggle.checked = game.wrap;
   obstaclesToggle.checked = game.obstaclesEnabled;
+  migrateSoundSetting();
   if (audio && readFlag(MUTED_KEY)) audio.setMuted(true);
   syncMute();
   syncHud();
@@ -514,6 +546,10 @@
     syncHud,
     syncOverlay,
     handleDeath,
+    soundEffect,
+    soundState: function () {
+      return audio ? audio.state() : 'unavailable';
+    },
     tick: function (times) {
       let last = null;
       for (let i = 0; i < (times || 1); i++) {

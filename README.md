@@ -26,7 +26,7 @@ npm start          # python -m http.server 8000 → http://localhost:8000
 | Pace selector | Chill · Normal (default) · Brisk — remembered across reloads |
 | Wrap walls | Edges become portals instead of killing you |
 | Obstacles | Scatter 3% of the board with solid blocks (restarts the board) |
-| Sound on/off | Mute toggle, also remembered |
+| Sound | Checkbox toggle; turning it on plays a two-note confirmation |
 
 ## Pace
 
@@ -73,12 +73,22 @@ next tick, and reversing into the neck is rejected rather than instant death.
 ## Sound
 
 `src/audio.js` synthesizes everything with `OscillatorNode` + `GainNode` — no
-sound files, nothing to download, ~90 lines. Events: eat (rising triangle),
+sound files, nothing to download, ~150 lines. Events: eat (rising triangle),
 level-up every 5 foods, death (falling saw), win (four-note arpeggio).
 
-The `AudioContext` is created lazily on the first real key/pointer event, because
-browsers block audio before a user gesture. Muting suspends nothing — it just
-skips creating the context, and the choice persists under `snake.muted`.
+Browsers refuse to start an `AudioContext` outside a user gesture, so the context
+is created lazily from a real event: keydown, canvas pointerdown, or any button /
+toggle / selector handler. Creating it later from the game loop would leave it
+`suspended` and silent — that is the usual cause of "no sound" in browser games.
+
+The **Sound** checkbox mutes by skipping synthesis entirely. Turning it back on
+plays a confirmation blip immediately, so audio problems are obvious without
+playing a round, and hovering the toggle shows the live audio state in its
+tooltip (`audio: running` / `suspended` / `muted`).
+
+An earlier build had a "Sound on" *button* that muted on click; since that was
+easy to hit by accident and then persisted, `snake.muted` is cleared once via a
+`snake.soundMigrated` marker, so everyone starts unmuted.
 
 ## Tests
 
@@ -97,13 +107,15 @@ never self-intersects and food never spawns under the snake or in a block.
 ## Debugging
 
 `window.__snake` exposes `{ game, tick(n), restart, primaryAction, syncHud,
-syncOverlay }` so a headless browser or the console can advance the simulation
-without waiting on timers:
+syncOverlay, handleDeath, soundEffect, soundState }` so a headless browser or the
+console can advance the simulation and poke audio without waiting on timers:
 
 ```js
 __snake.game.start();
 __snake.game.food = { x: __snake.game.head.x + 4, y: __snake.game.head.y };
 __snake.tick(4);   // eat it, grow, score
+__snake.soundEffect('eat');
+__snake.soundState();   // 'running' when audio can actually be heard
 ```
 
 ## Ideas
